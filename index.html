@@ -72,10 +72,17 @@
                 var zip = new JSZip();
                 await zip.loadAsync(zipData);
 
-                zip.forEach(function (relativePath, zipEntry) {
+                zip.forEach(async function (relativePath, zipEntry) {
                     var anchor = document.createElement("a");
                     anchor.textContent = zipEntry.name + " (" + zipEntry._data.uncompressedSize + " bytes)";
-                    anchor.href = "data:application/octet-stream;base64," + zipEntry._data;
+                    
+                    // Get the content of the file entry as a blob
+                    var content = await zipEntry.async("blob");
+                    
+                    // Create a Data URL for the content
+                    var dataUrl = URL.createObjectURL(content);
+                    
+                    anchor.href = dataUrl;
                     anchor.download = zipEntry.name; // Set the download attribute
                     anchor.style.display = "block"; // Make each link appear on a new line
                     output.appendChild(anchor);
