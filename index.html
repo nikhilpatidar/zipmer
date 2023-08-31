@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZIP File Viewer</title>
+    <title>ZIP File Contents Listing</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -48,49 +48,59 @@
         li {
             margin-bottom: 5px;
         }
+
+        .error-message {
+            color: red;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>ZIP File Viewer</h1>
-        <input type="text" id="zipLink" placeholder="Enter ZIP file download link">
-        <button onclick="listZipContents()">List Contents</button>
+        <h1>ZIP File Contents Listing</h1>
+        <form id="zipForm">
+            <label for="zipLink">Enter ZIP file download link:</label>
+            <input type="text" id="zipLink" name="zipLink" required>
+            <button type="submit">List Contents</button>
+        </form>
         <ul id="zipContents"></ul>
+        <p class="error-message" id="errorMessage"></p>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
     <script>
-        async function listZipContents() {
-            var zipLink = document.getElementById("zipLink").value;
-            var output = document.getElementById("zipContents");
-            output.innerHTML = ""; // Clear previous contents
-
-            try {
-                var response = await fetch(zipLink);
-                var zipData = await response.blob();
-
-                var zip = new JSZip();
-                await zip.loadAsync(zipData);
-
-                zip.forEach(async function (relativePath, zipEntry) {
-                    var anchor = document.createElement("a");
-                    anchor.textContent = zipEntry.name + " (" + zipEntry._data.uncompressedSize + " bytes)";
-                    
-                    // Get the content of the file entry as a blob
-                    var content = await zipEntry.async("blob");
-                    
-                    // Create a Data URL for the content
-                    var dataUrl = URL.createObjectURL(content);
-                    
-                    anchor.href = dataUrl;
-                    anchor.download = zipEntry.name; // Set the download attribute
-                    anchor.style.display = "block"; // Make each link appear on a new line
-                    output.appendChild(anchor);
+        document.getElementById('zipForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const zipLink = document.getElementById('zipLink').value;
+            const errorMessage = document.getElementById('errorMessage');
+            
+            fetch('http://142.93.221.71:5000/list_zip_contents', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ zipLink }),
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    throw new Error('Invalid ZIP file or URL');
+                }
+            })
+            .then(data => {
+                const zipContents = document.getElementById('zipContents');
+                zipContents.innerHTML = '';
+                data.contents.forEach(content => {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = content;
+                    zipContents.appendChild(listItem);
                 });
-            } catch (error) {
-                console.error("Error fetching or reading ZIP file: " + error);
-            }
-        }
+                errorMessage.textContent = '';
+            })
+            .catch(error => {
+                zipContents.innerHTML = '';
+                errorMessage.textContent = error.message;
+            });
+        });
     </script>
 </body>
 </html>
